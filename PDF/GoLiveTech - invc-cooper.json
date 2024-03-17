@@ -1,0 +1,40 @@
+{
+  "Invoice Number": "0432",
+  "Date": "2023-04-04T00:00:00",
+  "Billed to": "Cooper Pharma",
+  "Business Number in Brazil": "30.786.614/0001-01",
+  "Tabela Details": {
+    "Service": [
+      "SAP Automation",
+      "HPLC OCR data extraction and registration",
+      "Power Bl development",
+      "Power Apps development - Ticket system",
+      "HR onboarding registration automation"
+    ],
+    "Date From": [
+      "2023-02-05T00:00:00",
+      "2023-01-16T00:00:00",
+      "2023-01-02T00:00:00",
+      "2023-02-02T00:00:00",
+      "2023-03-06T00:00:00"
+    ],
+    "Date To": [
+      "2023-03-12T00:00:00",
+      "2023-02-25T00:00:00",
+      "2023-03-31T00:00:00",
+      "2023-02-27T00:00:00"
+    ],
+    "Moeda": "R$ - (BRL)",
+    "Price": [
+      "25,00",
+      "3569,88",
+      "6669,44",
+      "123,00",
+      "8996,54"
+    ],
+    "Total": "R$ 32.035,86"
+  },
+  "Soma de Preços": "R$ 19383,86",
+  "Total calculado é igual ou diferente ao total lido?": "O total calculado é diferente do total lido.",
+  "Due date": "2023-06-15T00:00:00"
+}
