@@ -1,6 +1,6 @@
 {
   "Invoice Number": "0001",
-  "Date": "2022-07-01T00:00:00",
+  "Date": "2022/07/01",
   "Billed to": "Coca-cola",
   "Business Number in Brazil": "30.786.614/0001-01",
   "Tabela Details": {
@@ -9,21 +9,21 @@
       "HR onboarding registration automation"
     ],
     "Date From": [
-      "2022-05-01T00:00:00",
-      "2022-06-01T00:00:00"
+      "2022/05/01",
+      "2022/06/01"
     ],
     "Date To": [
-      "2022-05-31T00:00:00",
-      "2022-06-30T00:00:00"
+      "2022/05/31",
+      "2022/06/30"
     ],
     "Moeda": "$ - (USD)",
     "Price": [
-      "500,00",
-      "1500,00"
+      "$ 500,00",
+      "$ 1500,00"
     ],
     "Total": "$ 2,000.00"
   },
-  "Soma de Preços": "$ 2000,00",
+  "Soma de Preços": "$ 2.000,00",
   "Total calculado é igual ou diferente ao total lido?": "O total calculado é igual ao total lido.",
-  "Due date": "2022-07-10T00:00:00"
+  "Due date": "2022/07/10"
 }

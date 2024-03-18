@@ -1,6 +1,6 @@
 {
   "Invoice Number": "1672",
-  "Date": "2022-12-08T00:00:00",
+  "Date": "2022/12/08",
   "Billed to": "Aspen Pharma",
   "Business Number in Brazil": "30.786.614/0001-01",
   "Tabela Details": {
@@ -8,18 +8,18 @@
       "Product demand forecast dashboard"
     ],
     "Date From": [
-      "2022-06-22T00:00:00"
+      "2022/06/22"
     ],
     "Date To": [
-      "2022-12-06T00:00:00"
+      "2022/12/06"
     ],
     "Moeda": "R$ - (BRL)",
     "Price": [
-      "365098,76"
+      "R$ 365098,76"
     ],
     "Total": "R$ 36.5098,76"
   },
-  "Soma de Preços": "R$ 365098,76",
+  "Soma de Preços": "R$ 365.098,76",
   "Total calculado é igual ou diferente ao total lido?": "O total calculado é igual ao total lido.",
-  "Due date": "2022-12-31T00:00:00"
+  "Due date": "2022/12/31"
 }

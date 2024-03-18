@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 using RestSharp;
 
 class Program
@@ -60,7 +61,7 @@ class Program
                     combinedText += ocrText + "\n";
                 }
 
-                var data = ExtractData(combinedText);
+                var data = ExtractData(combinedText, Path.GetFileNameWithoutExtension(pdfFile));
 
                 // Adicionar o resultado da comparação ao dicionário de dados
                 string totalString = (string)data["Total"];
@@ -83,11 +84,11 @@ class Program
                 {
                     data["Total calculado é igual ou diferente ao total lido?"] = "O total calculado é igual ao total lido.";
                 }
-                
+
                 // Criação de um arquivo JSON para cada PDF na pasta, usando o mesmo nome do arquivo PDF
                 string jsonFilePath = Path.Combine(directoryPath, Path.GetFileNameWithoutExtension(pdfFile) + ".json");
 
-                var orderedKeys = new List<string> { "Invoice Number", "Date", "Billed to", "Business Number in Brazil","Tabela Details", "Soma de Preços", "Total calculado é igual ou diferente ao total lido?", "Due date" };
+                var orderedKeys = new List<string> { "Invoice Number", "Date", "Billed to", "Business Number in Brazil", "Tabela Details", "Soma de Preços", "Total calculado é igual ou diferente ao total lido?", "Due date" };
 
                 // Ordem de exibição das chaves - Lógica
                 var orderedData = new Dictionary<string, object>();
@@ -114,9 +115,11 @@ class Program
     }
 
     // Método para extrair os dados de texto do PDF
-    static Dictionary<string, object> ExtractData(string ocrText)
+    static Dictionary<string, object> ExtractData(string ocrText, string pdfFileName)
     {
         var data = new Dictionary<string, object>();
+
+
 
         // Varíavel para dividir o texto em linhas
         string[] lines = ocrText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
@@ -125,7 +128,7 @@ class Program
         string invoiceNumber = null;
         string date = null;
         string billedTo = null;
-        string businessNumber = null;       
+        string businessNumber = null;
         string total = null;
         string dueDate = null;
         bool foundService = false;
@@ -149,7 +152,7 @@ class Program
             {
                 foundService = true;
             }
-            
+
             //Busca por Details na linha, e quando encontrar marca como encontrada para começar o conteúdo.
             else if (line.IndexOf("Details", StringComparison.OrdinalIgnoreCase) >= 0)
             {
@@ -171,11 +174,21 @@ class Program
                 dateString = dateString.Substring(0, Math.Min(dateString.Length, 10));
                 if (!string.IsNullOrWhiteSpace(dateString))
                 {
-                    // Conversão para ISO8601
-                    DateTime parsedDate;
-                    if (DateTime.TryParse(dateString, out parsedDate))
+
+                    if (DateTime.TryParse(dateString, out DateTime parsedDate))
                     {
-                        date = parsedDate.ToString("s");
+                        // Verificar se a hora está presente
+                        bool hasTime = parsedDate.TimeOfDay != TimeSpan.Zero;
+
+                        // Formatar de acordo com a presença do horário
+                        if (hasTime)
+                        {
+                            date = parsedDate.ToString("s"); // Formato ISO8601 completo
+                        }
+                        else
+                        {
+                            date = parsedDate.ToString("yyyy/MM/dd"); // Apenas a data
+                        }
                     }
                     else
                     {
@@ -212,22 +225,34 @@ class Program
         for (int i = 0; i < lines.Length; i++)
         {
             string line = lines[i].Trim();
+
+            // Se a linha começar com "Due date: "
             if (line.StartsWith("Due date: ", StringComparison.OrdinalIgnoreCase))
             {
                 // Capturando o conteúdo presente em toda a linha que começa com o solicitado.
-                dueDate = line.Substring("Due date: ".Length).Trim();
+                string dueDateLine = line.Substring("Due date: ".Length).Trim();
 
-                if (!string.IsNullOrWhiteSpace(dueDate))
+                if (!string.IsNullOrWhiteSpace(dueDateLine))
                 {
-                    //Conversão para ISO8601
-                    DateTime parsedDueDate;
-                    if (DateTime.TryParse(dueDate, out parsedDueDate))
+                    // Conversão para DateTime para verificar se há horário presente
+                    if (DateTime.TryParse(dueDateLine, out DateTime parsedDueDate))
                     {
-                        dueDate = parsedDueDate.ToString("s");
+                        // Verificar se há hora presente na data
+                        bool hasTime = parsedDueDate.TimeOfDay != TimeSpan.Zero;
+
+                        // Formatar de acordo com a presença do horário
+                        if (hasTime)
+                        {
+                            dueDate = parsedDueDate.ToString("s"); // Formato ISO8601 completo
+                        }
+                        else
+                        {
+                            dueDate = parsedDueDate.ToString("yyyy/MM/dd"); // Apenas a data
+                        }
                     }
                     else
                     {
-                        Console.WriteLine($"Erro ao converter a data: {dueDate}");
+                        Console.WriteLine($"Erro ao converter a data: {dueDateLine}");
                     }
                 }
             }
@@ -253,7 +278,7 @@ class Program
             }
         }
 
-        
+
         // Identificar o total como string e extrair o valor,
         string totalAsString = content.LastOrDefault();
 
@@ -279,7 +304,7 @@ class Program
 
         if (decimal.TryParse(numericValue, out decimal totalValue))
         {
-            string formattedTotal = totalValue.ToString("#,##0.00");
+            string formattedTotal = totalValue.ToString("#,##0");
             data["Total"] = formattedTotal;
             data["Moeda"] = moeda;
         }
@@ -309,7 +334,17 @@ class Program
             for (int i = priceIndex + 1; i < content.Count - 1; i++)
             {
                 string line = content.ElementAt(i);
-                string priceValueString = new string(line.Where(char.IsDigit).ToArray());
+                string priceValueString = line;     // Converte-os de volta para uma string
+
+                // Substituir ",O" por ",0"
+                priceValueString = priceValueString.Replace(",O", ",00");
+
+                // Substituir ",OO" por ",00"
+                priceValueString = priceValueString.Replace(",OO", ",00");
+
+                priceValueString = new string(priceValueString
+    .Where(char.IsDigit)
+    .ToArray());
 
                 if (decimal.TryParse(priceValueString, out decimal priceValue))
                 {
@@ -325,7 +360,7 @@ class Program
 
             //Foi criada uma lista apenas para os preços formatados, usando a lógica de separar o corpo do valor, da casa dos centavos e a partir desse ponto, decidir como montar a casa dos centavos
             List<string> precoFormatado = new List<string>();
-            
+
             foreach (decimal preco in precoValores)
             {
                 string centavos = preco.ToString().Substring(Math.Max(0, preco.ToString().Length - 2));
@@ -339,20 +374,34 @@ class Program
                 {
                     centavos = "," + centavos;
                 }
-                                
+
                 // Concatenar a parte inteira e os centavos formatados e incluir preço na lista
                 string formattedPrice = parteInteira + centavos;
                 precoFormatado.Add(formattedPrice);
             }
 
-            data["Preço"] = precoFormatado;
+            // Inicializar um objeto JSON para armazenar os preços formatados
+            JArray precoMoedaFormat = new JArray();
+
+            // Iterar sobre os preços formatados e adicionar ao objeto JSON
+            foreach (string preco in precoFormatado)
+            {
+                // Adicionar a formatação da moeda antes de cada preço formatado
+                string precoComMoeda = string.Format("{0} {1}", moeda == "R$ - (BRL)" ? "R$" : "$", preco);
+
+                // Adicionar cada preço formatado ao objeto JSON
+                precoMoedaFormat.Add(new JValue(precoComMoeda));
+            }
+
+            // Adicionar o objeto JSON ao dicionário de dados
+            data["Preço"] = precoMoedaFormat;
 
             // Converter os preços formatados de volta para valores decimais para depois somar todos
             List<decimal> precosDecimais = precoFormatado.Select(p => decimal.Parse(p)).ToList();
             decimal somaPrecosFormatados = precosDecimais.Sum();
 
             // Obter a parte inteira dos valores e depois obter os centavos
-            string parteInteiraSum = ((int)somaPrecosFormatados).ToString();
+            string parteInteiraSum = ((int)somaPrecosFormatados).ToString("#,##0");
             string centavosSum = (somaPrecosFormatados - Math.Truncate(somaPrecosFormatados)).ToString().PadRight(3, '0').Substring(2);
 
             // Formatação usada para adicionar uma vírgula antes das duas últimas casas e incluir o sinal respectivo de valor
@@ -365,14 +414,14 @@ class Program
             Console.WriteLine("A palavra \"Price\" não foi encontrada no conteúdo.");
         }
 
-        
+
         // Encontrar o índice da primeira ocorrência da palavra "Price" dentro do Content
         int dateIndex = -1;
         int currentDateIndex = 0;
 
-        foreach (string line in content)
+        foreach (string line in lines)
         {
-            if (line.StartsWith("Price (USD)", StringComparison.OrdinalIgnoreCase) || line.StartsWith("Price (BRL)", StringComparison.OrdinalIgnoreCase))
+            if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
             {
                 dateIndex = currentDateIndex;
                 break;
@@ -381,26 +430,37 @@ class Program
         }
 
 
-        // Cria uma lista para armazenar os valores de "Date Tp" no formato ISO8601
-        int dateToIndex = content.ToList().FindIndex(x => x.StartsWith("Date To", StringComparison.OrdinalIgnoreCase));
+        // Cria uma lista para armazenar os valores de "Date To" no formato ISO8601
+        int dateToIndex = lines.ToList().FindIndex(x => x.StartsWith("Date To", StringComparison.OrdinalIgnoreCase));
         if (dateToIndex != -1 && dateIndex != -1)
         {
-            
+
             List<string> dateToList = new List<string>();
 
             for (int i = dateToIndex + 1; i < dateIndex; i++)
             {
-                string dateString = content.ElementAt(i);
+                string dateToString = lines.ElementAt(i);
 
                 // Conversão da string para DateTime e depois para string no formato ISO8601
                 DateTime parsedDate;
-                if (DateTime.TryParse(dateString, out parsedDate))
+                if (DateTime.TryParse(dateToString, out parsedDate))
                 {
-                    dateToList.Add(parsedDate.ToString("s"));
+                    // Verificar se há horário presente na data
+                    bool hasTime = parsedDate.TimeOfDay != TimeSpan.Zero;
+
+                    // Formatar de acordo com a presença do horário
+                    if (hasTime)
+                    {
+                        dateToList.Add(parsedDate.ToString("s")); // Formato ISO8601 completo
+                    }
+                    else
+                    {
+                        dateToList.Add(parsedDate.ToString("yyyy/MM/dd")); // Apenas a data
+                    }
                 }
                 else
                 {
-                    Console.WriteLine($"Erro ao converter a data \"{dateString}\" para o formato ISO8601.");
+                    Console.WriteLine($"Erro ao converter a data \"{dateToString}\" para o formato ISO8601.");
                 }
             }
             data["Date To"] = dateToList;
@@ -411,7 +471,7 @@ class Program
         }
 
 
-        
+
         // Encontrar o índice da primeira ocorrência da palavra "Price" dentro do Content
         int datePastIndex = -1;
         int DateFromIndex = 0;
@@ -426,7 +486,7 @@ class Program
             DateFromIndex++;
         }
 
-        
+
         // Cria uma lista para armazenar os valores de "Date From" no formato ISO8601
         int datefromIndex = content.ToList().FindIndex(x => x.StartsWith("Date from", StringComparison.OrdinalIgnoreCase));
         if (datefromIndex != -1 && datePastIndex != -1)
@@ -437,26 +497,33 @@ class Program
             {
                 string dateString = content.ElementAt(i);
 
-                // Conversão de string para DateTime e depois para string no formato ISO8601.
+                // Conversão de string para DateTime e depois para string no formato ISO8601
                 DateTime parsedDate;
                 if (DateTime.TryParse(dateString, out parsedDate))
                 {
-                    datefromList.Add(parsedDate.ToString("s"));
-                }
-                else
-                {
-                    Console.WriteLine($"Erro ao converter a data \"{dateString}\" para o formato ISO8601.");
-                }
-            }
+                    // Verificar se há horário presente na data
+                    bool hasTime = parsedDate.TimeOfDay != TimeSpan.Zero;
 
-            data["Date From"] = datefromList;
+                    // Formatar de acordo com a presença do horário
+                    if (hasTime)
+                    {
+                        datefromList.Add(parsedDate.ToString("s")); // Formato ISO8601 completo
+                    }
+                    else
+                    {
+                        datefromList.Add(parsedDate.ToString("yyyy/MM/dd")); // Apenas a data
+                    }
+                }
+
+                data["Date From"] = datefromList;
+            }
         }
         else
         {
             Console.WriteLine("A palavra \"Date From\" não foi encontrada no conteúdo.");
         }
 
-        
+
         // Achar índice da primeira ocorrência da palavra "Total" dentro do Content
         int serviceDetailsIndex = -1;
         int serviceCurrentIndex = 0;
@@ -471,13 +538,13 @@ class Program
             serviceCurrentIndex++;
         }
 
-        
+
         // Obter o objeto Service a partir da procura da palavra Details percorrendo todas as linhas até encontrar Total que demarca o limite do conteúdo dos Services
         int servicecurrentIndex = content.ToList().FindIndex(x => x.StartsWith("Details", StringComparison.OrdinalIgnoreCase));
         if (servicecurrentIndex == -1)
         {
             var serviceList = new List<string>();
-           
+
             for (int i = servicecurrentIndex + 1; i < content.Count; i++)
             {
                 string line = content.ElementAt(i);
@@ -492,7 +559,7 @@ class Program
 
             data["Service"] = serviceList;
         }
-        
+
         // Declaração de datas
         data["Invoice Number"] = invoiceNumber;
         data["Date"] = date;
@@ -539,7 +606,7 @@ class Program
     {
         for (int i = startIndex; i < lines.Length; i++)
         {
-            string line = lines[i].Trim();           
+            string line = lines[i].Trim();
             if (!string.IsNullOrWhiteSpace(line))
             {
                 return line;
